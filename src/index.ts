@@ -602,7 +602,7 @@ async function handleConvertSuiToMist(args: any) {
 // Main server setup
 const server = new Server(
   {
-    name: "comprehensive-sui-mcp-server",
+    name: "sui-mcp-server",
     version: "1.0.0",
   },
   {

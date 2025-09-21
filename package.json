@@ -1,5 +1,5 @@
 {
-  "name": "@ExpertVagabond/sui-mcp-server",
+  "name": "sui-mcp-server",
   "version": "1.0.0",
   "description": "Sui MCP server for wallet management, transaction handling, and interactions on Sui blockchain",
   "main": "dist/index.js",
