@@ -31,7 +31,12 @@ const NETWORKS = {
   localnet: getFullnodeUrl("localnet")
 };
 
-// Wallet storage (in production, use secure storage)
+// ⚠️ SECURITY WARNING: Private keys and mnemonics are stored in plain text in memory
+// This is suitable for development/testing only. For production use:
+// - Implement secure key storage (HSM, encrypted vaults)
+// - Add access controls and authentication  
+// - Use memory protection and key rotation
+// See SECURITY.md for detailed security recommendations
 const wallets = new Map<string, { keypair: Ed25519Keypair; name: string; mnemonic?: string }>();
 
 // Initialize client
