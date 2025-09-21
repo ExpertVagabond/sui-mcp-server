@@ -715,12 +715,21 @@ export default async function createServer({ sessionId, config }: { sessionId?: 
 
 // Run directly when not imported (for standalone execution)
 // Support both ES modules and CommonJS
-const isMainModule = (
-  // ES modules
-  (typeof import.meta !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) ||
-  // CommonJS fallback
-  (typeof require !== 'undefined' && require.main === module)
-);
+const isMainModule = (() => {
+  try {
+    // ES modules check (safely handle import.meta)
+    if (typeof process !== 'undefined' && process.argv && process.argv[1]) {
+      const scriptPath = process.argv[1];
+      // Check if running directly (not imported)
+      return scriptPath.includes('index.js') || scriptPath.includes('index.ts');
+    }
+    // CommonJS fallback
+    return typeof require !== 'undefined' && require.main === module;
+  } catch {
+    // Fallback to true for standalone execution
+    return true;
+  }
+})();
 
 if (isMainModule) {
   main().catch((error) => {
