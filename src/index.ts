@@ -709,7 +709,15 @@ export default async function createServer({ sessionId, config }: { sessionId?: 
 }
 
 // Run directly when not imported (for standalone execution)
-if (typeof require !== 'undefined' && require.main === module) {
+// Support both ES modules and CommonJS
+const isMainModule = (
+  // ES modules
+  (typeof import.meta !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) ||
+  // CommonJS fallback
+  (typeof require !== 'undefined' && require.main === module)
+);
+
+if (isMainModule) {
   main().catch((error) => {
     console.error("Server error:", error);
     process.exit(1);
