@@ -703,7 +703,15 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error("Server error:", error);
-  process.exit(1);
-});
+// Export for Smithery compatibility
+export default async function createServer({ sessionId, config }: { sessionId?: string; config?: any } = {}): Promise<Server> {
+  return server;
+}
+
+// Run directly when not imported (for standalone execution)
+if (typeof require !== 'undefined' && require.main === module) {
+  main().catch((error) => {
+    console.error("Server error:", error);
+    process.exit(1);
+  });
+}
