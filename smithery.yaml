@@ -1,6 +1,6 @@
 name: sui-mcp-server
 description: "Comprehensive Sui MCP server for wallet management, transaction handling, and interactions on Sui blockchain"
-version: 1.0.0
+version: 1.0.1
 author: "ExpertVagabond"
 license: MIT
 runtime: "typescript"
