@@ -2,4 +2,4 @@ runtime: "typescript"
 transport: "stdio"
 remote: true
 description: "Comprehensive Sui MCP server for wallet management, transaction handling, and interactions on Sui blockchain"
-version: "1.0.2"
+version: "1.0.3"

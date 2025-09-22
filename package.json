@@ -1,62 +1,13 @@
 {
-  "name": "@ExpertVagabond/sui-mcp-server",
-  "version": "1.0.2",
-  "description": "Sui MCP server for wallet management, transaction handling, and interactions on Sui blockchain",
-  "main": "dist/index.js",
+  "name": "sui-mcp-server",
+  "version": "1.0.3",
+  "description": "Comprehensive Sui MCP server for wallet management, transaction handling, and interactions on Sui blockchain",
+  "main": "index.js",
   "module": "./src/index.ts",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "sui-mcp-server": "./dist/index.js"
-  },
-  "files": [
-    "dist/**/*",
-    "README.md",
-    "package.json"
-  ],
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "build:smithery": "npx @smithery/cli build",
     "dev": "npx @smithery/cli dev",
-    "start": "node dist/index.js",
-    "test": "node test-simple.js",
-    "prepare": "npm run build",
-    "postinstall": "npm run install-sui",
-    "install-sui": "npm install -g @mysten/sui.js@latest --yes --silent || echo 'Sui SDK installation failed, but MCP will work with installed version'",
-    "publish:npm": "npm publish --access public",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write src/**/*.ts",
-    "format:check": "prettier --check src/**/*.ts",
-    "test:jest": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist",
-    "prebuild": "npm run clean",
-    "prepublishOnly": "npm run build",
-    "quality": "npm run lint && npm run format:check && npm run type-check && npm run test:jest"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
-    "@mysten/sui": "^1.13.0",
-    "bip39": "^3.1.0",
-    "ed25519-hd-key": "^1.3.0",
-    "zod": "^4.1.11"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/jest": "^29.5.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.0.0",
-    "jest": "^29.0.0",
-    "prettier": "^3.0.0",
-    "ts-jest": "^29.0.0",
-    "typescript": "^5.0.0"
-  },
-  "engines": {
-    "node": ">=18"
+    "build": "npx @smithery/cli build"
   },
   "keywords": [
     "mcp",
@@ -66,17 +17,18 @@
     "defi",
     "web3",
     "smart-contracts",
-    "move",
-    "objects"
+    "move"
   ],
   "author": "ExpertVagabond",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/ExpertVagabond/sui-mcp-server.git"
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@mysten/sui": "^1.0.0",
+    "bip39": "^3.0.0",
+    "ed25519-hd-key": "^1.0.0"
   },
-  "bugs": {
-    "url": "https://github.com/ExpertVagabond/sui-mcp-server/issues"
-  },
-  "homepage": "https://github.com/ExpertVagabond/sui-mcp-server#readme"
+  "devDependencies": {
+    "@smithery/cli": "^1.2.4",
+    "tsx": "^4.19.4"
+  }
 }
