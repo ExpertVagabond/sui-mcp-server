@@ -23,7 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
-    "@mysten/sui": "^1.0.0",
+    "@mysten/sui": "^1.39.0",
     "bip39": "^3.0.0",
     "ed25519-hd-key": "^1.0.0"
   },
