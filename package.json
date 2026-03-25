@@ -1,6 +1,6 @@
 {
   "name": "sui-mcp-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server for Sui blockchain — wallet management, token ops, transactions, Move calls, staking",
   "type": "module",
   "main": "dist/index.js",
@@ -36,6 +36,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.0",
     "@mysten/sui": "^2.9.1",
+    "@mysten/suins": "^1.0.2",
     "zod": "^3.23.0"
   },
   "files": [
