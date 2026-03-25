@@ -499,6 +499,214 @@ const tools: Tool[] = [
       required: ["name"],
     },
   },
+  {
+    name: "resolve_address",
+    description: "Reverse-resolve an address to its SuiNS name(s).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        address: { type: "string", description: "Sui address" },
+      },
+      required: ["address"],
+    },
+  },
+
+  // Events
+  {
+    name: "query_events",
+    description:
+      "Query on-chain events by type, sender, package, module, or transaction digest.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filter: {
+          type: "object",
+          description:
+            'Event filter. Examples: { "MoveEventType": "0x2::coin::CoinEvent" }, { "Sender": "0x..." }, { "Package": "0x2" }, { "Transaction": "digest..." }',
+        },
+        limit: { type: "number", description: "Max events (default: 50)" },
+        order: {
+          type: "string",
+          enum: ["ascending", "descending"],
+          description: "Sort order (default: descending)",
+        },
+      },
+      required: ["filter"],
+    },
+  },
+
+  // Transaction Queries
+  {
+    name: "query_transactions",
+    description:
+      "Search and filter transactions by sender, recipient, input object, changed object, or Move function.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filter: {
+          type: "object",
+          description:
+            'Transaction filter. Examples: { "FromAddress": "0x..." }, { "ToAddress": "0x..." }, { "InputObject": "0x..." }, { "ChangedObject": "0x..." }, { "MoveFunction": { "package": "0x2", "module": "coin", "function": "transfer" } }',
+        },
+        limit: { type: "number", description: "Max transactions (default: 50)" },
+        order: {
+          type: "string",
+          enum: ["ascending", "descending"],
+          description: "Sort order (default: descending)",
+        },
+      },
+      required: ["filter"],
+    },
+  },
+
+  // Multi-Object Queries
+  {
+    name: "multi_get_objects",
+    description: "Batch-fetch multiple objects by their IDs in one call.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        objectIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of object IDs to fetch",
+        },
+        showContent: { type: "boolean", description: "Include content (default: true)" },
+        showType: { type: "boolean", description: "Include type (default: true)" },
+      },
+      required: ["objectIds"],
+    },
+  },
+
+  // Package Inspection
+  {
+    name: "get_package_modules",
+    description: "List all modules in a Move package, with their functions and structs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        packageId: { type: "string", description: "Package object ID" },
+      },
+      required: ["packageId"],
+    },
+  },
+  {
+    name: "get_move_struct",
+    description: "Get a Move struct definition (fields, abilities, type parameters).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        packageId: { type: "string", description: "Package object ID" },
+        moduleName: { type: "string", description: "Module name" },
+        structName: { type: "string", description: "Struct name" },
+      },
+      required: ["packageId", "moduleName", "structName"],
+    },
+  },
+
+  // Epoch & Checkpoint Analytics
+  {
+    name: "get_epoch_info",
+    description: "Get detailed info about epochs (current or historical).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Number of epochs to return (default: 5)" },
+        order: {
+          type: "string",
+          enum: ["ascending", "descending"],
+          description: "Sort order (default: descending)",
+        },
+      },
+    },
+  },
+  {
+    name: "get_checkpoint",
+    description: "Get detailed checkpoint data by sequence number.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sequenceNumber: { type: "string", description: "Checkpoint sequence number" },
+      },
+      required: ["sequenceNumber"],
+    },
+  },
+
+  // Protocol & System
+  {
+    name: "get_protocol_config",
+    description: "Get the current Sui protocol configuration (limits, features, gas settings).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_system_state",
+    description:
+      "Get the full Sui system state: epoch, validators, stake distribution, gas price, storage fund.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_committee_info",
+    description: "Get validator committee information for a specific epoch.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        epoch: { type: "string", description: "Epoch number (default: current)" },
+      },
+    },
+  },
+
+  // Dev Inspect
+  {
+    name: "dev_inspect",
+    description:
+      "Simulate a Move call without executing it — returns results, gas cost, and effects. No wallet needed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sender: { type: "string", description: "Sender address to simulate from" },
+        target: { type: "string", description: "Move call target: package::module::function" },
+        arguments: {
+          type: "array",
+          items: {},
+          description: "Function arguments",
+        },
+        typeArguments: {
+          type: "array",
+          items: { type: "string" },
+          description: "Type arguments",
+        },
+      },
+      required: ["sender", "target"],
+    },
+  },
+
+  // Object History
+  {
+    name: "get_object_history",
+    description: "Find all transactions that touched a given object (trace provenance).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        objectId: { type: "string", description: "Object ID to trace" },
+        limit: { type: "number", description: "Max transactions (default: 20)" },
+      },
+      required: ["objectId"],
+    },
+  },
+
+  // Token Analytics
+  {
+    name: "get_total_transactions",
+    description: "Get the total number of transactions on the network.",
+    inputSchema: { type: "object", properties: {} },
+  },
+
+  // Move Call Metrics
+  {
+    name: "get_move_call_metrics",
+    description: "Get Move call metrics — most-called packages, modules, and functions.",
+    inputSchema: { type: "object", properties: {} },
+  },
 ];
 
 // ─── Tool Handlers ───────────────────────────────────────────────────────────
@@ -966,6 +1174,182 @@ async function handleTool(
         );
       }
 
+      case "resolve_address": {
+        const address = AddressSchema.parse(args.address);
+        const names = await client.resolveNameServiceNames({ address });
+        return textResult(JSON.stringify({ address, names }, null, 2));
+      }
+
+      // ── Events ──
+      case "query_events": {
+        const filter = args.filter as Record<string, unknown>;
+        if (!filter) return errorResult("Filter is required.");
+        const limit = z.number().int().min(1).max(200).optional().parse(args.limit) ?? 50;
+        const order = (args.order as string) === "ascending" ? "ascending" : "descending";
+        const events = await client.queryEvents({
+          query: filter as never,
+          limit,
+          order: order as "ascending" | "descending",
+        });
+        return textResult(JSON.stringify(events, null, 2));
+      }
+
+      // ── Transaction Queries ──
+      case "query_transactions": {
+        const filter = args.filter as Record<string, unknown>;
+        if (!filter) return errorResult("Filter is required.");
+        const limit = z.number().int().min(1).max(200).optional().parse(args.limit) ?? 50;
+        const order = (args.order as string) === "ascending" ? "ascending" : "descending";
+        const txns = await client.queryTransactionBlocks({
+          filter: filter as never,
+          limit,
+          order: order as "ascending" | "descending",
+          options: { showEffects: true, showInput: false },
+        });
+        return textResult(JSON.stringify(txns, null, 2));
+      }
+
+      // ── Multi-Object Queries ──
+      case "multi_get_objects": {
+        const objectIds = z.array(ObjectIdSchema).min(1).max(50).parse(args.objectIds);
+        const showContent = args.showContent !== false;
+        const showType = args.showType !== false;
+        const objects = await client.multiGetObjects({
+          ids: objectIds,
+          options: { showContent, showType, showOwner: true },
+        });
+        return textResult(JSON.stringify(objects, null, 2));
+      }
+
+      // ── Package Inspection ──
+      case "get_package_modules": {
+        const packageId = ObjectIdSchema.parse(args.packageId);
+        const modules = await client.getNormalizedMoveModulesByPackage({ package: packageId });
+        const summary = Object.entries(modules as Record<string, { exposedFunctions: Record<string, unknown>; structs: Record<string, unknown> }>).map(([name, mod]) => ({
+          module: name,
+          functions: Object.keys(mod.exposedFunctions || {}),
+          structs: Object.keys(mod.structs || {}),
+        }));
+        return textResult(JSON.stringify({ packageId, modules: summary }, null, 2));
+      }
+
+      case "get_move_struct": {
+        const packageId = ObjectIdSchema.parse(args.packageId);
+        const moduleName = z.string().min(1).parse(args.moduleName);
+        const structName = z.string().min(1).parse(args.structName);
+        const struct = await client.getNormalizedMoveStruct({
+          package: packageId,
+          module: moduleName,
+          struct: structName,
+        });
+        return textResult(JSON.stringify(struct, null, 2));
+      }
+
+      // ── Epoch & Checkpoint Analytics ──
+      case "get_epoch_info": {
+        const limit = z.number().int().min(1).max(50).optional().parse(args.limit) ?? 5;
+        const order = (args.order as string) === "ascending" ? "ascending" : "descending";
+        const epochs = await client.getEpochs({
+          limit,
+          descendingOrder: order === "descending",
+        });
+        return textResult(JSON.stringify(epochs, null, 2));
+      }
+
+      case "get_checkpoint": {
+        const seqNum = z.string().min(1).parse(args.sequenceNumber);
+        const checkpoint = await client.getCheckpoint({ id: seqNum });
+        return textResult(JSON.stringify(checkpoint, null, 2));
+      }
+
+      // ── Protocol & System ──
+      case "get_protocol_config": {
+        const config = await client.getProtocolConfig({});
+        return textResult(JSON.stringify(config, null, 2));
+      }
+
+      case "get_system_state": {
+        const state = await client.getLatestSuiSystemState();
+        const s = state as unknown as {
+          epoch: string;
+          referenceGasPrice: string;
+          storageFundTotalObjectStorageRebates: string;
+          totalStake: string;
+          activeValidators: Array<{ suiAddress: string; name: string; stakingPoolSuiBalance: string; commissionRate: string }>;
+        };
+        return textResult(
+          JSON.stringify(
+            {
+              epoch: s.epoch,
+              referenceGasPrice: s.referenceGasPrice,
+              storageFundRebates: s.storageFundTotalObjectStorageRebates,
+              totalStake: formatSui(s.totalStake),
+              validatorCount: s.activeValidators.length,
+              network: currentNetwork,
+            },
+            null,
+            2
+          )
+        );
+      }
+
+      case "get_committee_info": {
+        const epoch = args.epoch as string | undefined;
+        const committee = await client.getCommitteeInfo({ epoch: epoch ?? undefined });
+        return textResult(JSON.stringify(committee, null, 2));
+      }
+
+      // ── Dev Inspect ──
+      case "dev_inspect": {
+        const sender = AddressSchema.parse(args.sender);
+        const target = z.string().regex(/^0x[^:]+::[^:]+::[^:]+$/).parse(args.target);
+        const fnArgs = (args.arguments as unknown[]) || [];
+        const typeArgs = (args.typeArguments as string[]) || [];
+
+        const tx = new Transaction();
+        tx.moveCall({
+          target: target as `${string}::${string}::${string}`,
+          arguments: fnArgs.map((a) => {
+            if (typeof a === "string" && a.startsWith("0x")) return tx.object(a);
+            if (typeof a === "number" || typeof a === "bigint") return tx.pure.u64(BigInt(a));
+            if (typeof a === "boolean") return tx.pure.bool(a);
+            return tx.pure.string(String(a));
+          }),
+          typeArguments: typeArgs,
+        });
+
+        const result = await client.devInspectTransactionBlock({
+          transactionBlock: tx,
+          sender,
+        });
+        return textResult(JSON.stringify(result, null, 2));
+      }
+
+      // ── Object History ──
+      case "get_object_history": {
+        const objectId = ObjectIdSchema.parse(args.objectId);
+        const limit = z.number().int().min(1).max(100).optional().parse(args.limit) ?? 20;
+        const txns = await client.queryTransactionBlocks({
+          filter: { ChangedObject: objectId },
+          limit,
+          order: "descending",
+          options: { showEffects: true, showInput: true },
+        });
+        return textResult(JSON.stringify(txns, null, 2));
+      }
+
+      // ── Total Transactions ──
+      case "get_total_transactions": {
+        const total = await client.getTotalTransactionBlocks();
+        return textResult(JSON.stringify({ totalTransactions: String(total), network: currentNetwork }, null, 2));
+      }
+
+      // ── Move Call Metrics ──
+      case "get_move_call_metrics": {
+        const metrics = await client.getMoveCallMetrics();
+        return textResult(JSON.stringify(metrics, null, 2));
+      }
+
       default:
         return errorResult(`Unknown tool: ${name}`);
     }
@@ -977,7 +1361,7 @@ async function handleTool(
 // ─── Server Setup ────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "sui-mcp-server", version: "0.1.0" },
+  { name: "sui-mcp-server", version: "0.2.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -993,7 +1377,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`sui-mcp-server v0.1.0 running on ${currentNetwork} (stdio)`);
+  console.error(`sui-mcp-server v0.2.0 running on ${currentNetwork} (stdio)`);
 }
 
 main().catch((err) => {
