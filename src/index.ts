@@ -49,13 +49,14 @@ let client = new SuiJsonRpcClient({
 let suinsClient: SuinsClient | null = null;
 
 function getSuinsClient(): SuinsClient {
-  if (!suinsClient || currentNetwork === "localnet") {
-    const net = currentNetwork === "localnet" ? "mainnet" : currentNetwork;
+  // SuiNS only supports mainnet and testnet — always use mainnet for name resolution
+  const suinsNet = (currentNetwork === "mainnet" || currentNetwork === "testnet") ? currentNetwork : "mainnet";
+  if (!suinsClient) {
     const suiClientForSuins = new SuiJsonRpcClient({
-      url: getJsonRpcFullnodeUrl(net),
-      network: net,
+      url: getJsonRpcFullnodeUrl(suinsNet),
+      network: suinsNet,
     });
-    suinsClient = new SuinsClient({ client: suiClientForSuins as never, network: net });
+    suinsClient = new SuinsClient({ client: suiClientForSuins as never, network: suinsNet });
   }
   return suinsClient;
 }
