@@ -1006,8 +1006,9 @@ async function handleTool(
         const coinsToMerge = z.array(ObjectIdSchema).min(1).parse(args.coinsToMerge);
 
         const tx = new Transaction();
+        // Merge into the gas coin if primary is the gas coin, otherwise use object ref
         tx.mergeCoins(
-          tx.object(primaryCoin),
+          tx.gas,
           coinsToMerge.map((id) => tx.object(id))
         );
 
@@ -1027,9 +1028,14 @@ async function handleTool(
         const coinId = ObjectIdSchema.parse(args.coinId);
         const amounts = z.array(z.number().positive()).min(1).parse(args.amounts);
 
+        // Check if this is the only coin (use tx.gas to avoid "no gas" error)
+        const ownerCoins = await client.getCoins({ owner: wallet.address, limit: 2 });
+        const isSoleCoin = (ownerCoins.data?.length ?? 0) <= 1;
+
         const tx = new Transaction();
+        const source = isSoleCoin ? tx.gas : tx.object(coinId);
         const newCoins = tx.splitCoins(
-          tx.object(coinId),
+          source,
           amounts.map((a) => BigInt(a))
         );
         // Transfer split coins back to sender
