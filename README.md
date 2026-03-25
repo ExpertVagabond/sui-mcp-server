@@ -196,11 +196,22 @@ The server starts on **devnet** by default. Switch networks at any time with `sw
 
 ## Security
 
-- **Keys are in-memory only** — never written to disk, never logged.
-- Private keys are redacted in all error messages.
+> **Warning:** This server stores private keys in memory during runtime. For production use, take appropriate precautions.
+
+**Built-in protections:**
+- **Keys are in-memory only** — never written to disk, never logged, cleared on process exit.
+- Private keys are redacted from all error messages (`suiprivkey...` → `[REDACTED]`).
 - Addresses are truncated in error output to prevent leakage.
 - Rate limiting: 120 calls per minute (sliding window).
 - All inputs validated with Zod strict schemas — rejects unknown fields.
+
+**Production recommendations:**
+- Use a secure key management solution (hardware wallet, HSM, or vault) instead of in-memory keys for mainnet operations.
+- Run the server in an isolated environment (container, sandbox, or restricted user).
+- Implement network-level access controls — the stdio transport is local-only by default.
+- Rotate keys regularly and use separate wallets for testing vs. production.
+- Monitor wallet activity and set up alerts for unexpected transactions.
+- Prefer `dev_inspect` and `dry_run_transaction` to preview effects before executing on mainnet.
 
 ## Architecture
 
