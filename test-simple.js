@@ -22,7 +22,7 @@ function parse(result) {
 }
 
 async function run() {
-  console.log("sui-mcp-server v0.2.0 integration tests\n");
+  console.log("sui-mcp-server v0.3.0 integration tests\n");
 
   const transport = new StdioClientTransport({ command: "node", args: ["dist/index.js"] });
   const client = new Client({ name: "test", version: "1.0" });
@@ -30,17 +30,20 @@ async function run() {
 
   // ── Tool Registration ──
   const { tools } = await client.listTools();
-  assert("Lists 45 tools", tools.length === 45, `got ${tools.length}`);
+  assert("Lists 53 tools", tools.length === 53, `got ${tools.length}`);
 
   const names = tools.map((t) => t.name);
   for (const expected of [
     "create_wallet", "transfer_sui", "get_object", "move_call",
     "get_stakes", "switch_network", "request_faucet", "resolve_name",
-    // v0.2.0 new tools
+    // v0.2.0 tools
     "resolve_address", "query_events", "query_transactions", "multi_get_objects",
     "get_package_modules", "get_move_struct", "get_epoch_info", "get_checkpoint",
     "get_protocol_config", "get_system_state", "get_committee_info", "dev_inspect",
     "get_object_history", "get_total_transactions", "get_move_call_metrics",
+    // v0.3.0 DeFi tools
+    "cetus_get_pools", "cetus_get_pool", "deepbook_get_pool", "get_token_price",
+    "swap_quote", "suins_get_name_record", "suins_get_price", "list_common_tokens",
   ]) {
     assert(`Has tool: ${expected}`, names.includes(expected));
   }
@@ -105,7 +108,25 @@ async function run() {
   const cp = parse(await client.callTool({ name: "get_latest_checkpoint", arguments: {} }));
   assert("Gets latest checkpoint", typeof cp.checkpoint === "string");
 
+  // ── v0.3.0 DeFi Tools ──
+  const tokens = parse(await client.callTool({ name: "list_common_tokens", arguments: {} }));
+  assert("Lists common tokens", tokens.tokens.length >= 5);
+  assert("Has SUI token", tokens.tokens.some(t => t.symbol === "SUI"));
+
+  // Switch to mainnet for DeFi tests
+  await client.callTool({ name: "switch_network", arguments: { network: "mainnet" } });
+
+  const suinsRec = parse(await client.callTool({ name: "suins_get_name_record", arguments: { name: "sui.sui" } }));
+  assert("Gets SuiNS name record", suinsRec.name === "sui.sui");
+  assert("SuiNS has NFT ID", suinsRec.nftId?.startsWith("0x"));
+
+  const cetusPool = await client.callTool({ name: "cetus_get_pool", arguments: { poolId: "0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688571" } });
+  assert("Gets Cetus SUI/USDC pool", !cetusPool.isError);
+
   // ── Validation ──
+  // Switch back to devnet for validation tests
+  await client.callTool({ name: "switch_network", arguments: { network: "devnet" } });
+
   const bad = await client.callTool({ name: "get_balance", arguments: { address: "not-valid" } });
   assert("Rejects invalid address", bad.isError === true);
 

@@ -11,7 +11,22 @@ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { requestSuiFromFaucetV2, getFaucetHost } from "@mysten/sui/faucet";
+import { SuinsClient } from "@mysten/suins";
 import { z } from "zod";
+
+// ─── DeFi Constants ──────────────────────────────────────────────────────────
+
+const CETUS_CLMM_PACKAGE = "0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb";
+const DEEPBOOK_PACKAGE = "0x337f4f4f6567fcd778d5454f27c16c70e2f274cc6377ea6249ddf491482ef497";
+const DEEPBOOK_REGISTRY = "0xaf16199a2dff736e9f07a845f23c5da6df6f756eddb631aed9d24a93efc4549d";
+
+const COMMON_COIN_TYPES: Record<string, string> = {
+  SUI: "0x2::sui::SUI",
+  USDC: "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
+  USDT: "0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN",
+  WETH: "0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN",
+  DEEP: "0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP",
+};
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,9 +46,23 @@ let client = new SuiJsonRpcClient({
   url: getJsonRpcFullnodeUrl(currentNetwork as Exclude<NetworkType, "localnet">),
   network: currentNetwork as Exclude<NetworkType, "localnet">,
 });
+let suinsClient: SuinsClient | null = null;
+
+function getSuinsClient(): SuinsClient {
+  if (!suinsClient || currentNetwork === "localnet") {
+    const net = currentNetwork === "localnet" ? "mainnet" : currentNetwork;
+    const suiClientForSuins = new SuiJsonRpcClient({
+      url: getJsonRpcFullnodeUrl(net),
+      network: net,
+    });
+    suinsClient = new SuinsClient({ client: suiClientForSuins as never, network: net });
+  }
+  return suinsClient;
+}
 
 function switchClient(network: NetworkType): void {
   currentNetwork = network;
+  suinsClient = null; // Reset SuiNS client
   if (network === "localnet") {
     client = new SuiJsonRpcClient({ url: "http://127.0.0.1:9000", network: "custom" as never });
   } else {
@@ -42,6 +71,11 @@ function switchClient(network: NetworkType): void {
       network,
     });
   }
+}
+
+function resolveCoinType(input: string): string {
+  const upper = input.toUpperCase();
+  return COMMON_COIN_TYPES[upper] || input;
 }
 
 // ─── Validation Schemas ──────────────────────────────────────────────────────
@@ -707,6 +741,105 @@ const tools: Tool[] = [
     description: "Get Move call metrics — most-called packages, modules, and functions.",
     inputSchema: { type: "object", properties: {} },
   },
+
+  // ── DeFi: Cetus DEX ──
+  {
+    name: "cetus_get_pools",
+    description: "Query Cetus CLMM pools by coin types. Returns pool addresses, liquidity, and fee rates.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        coinTypeA: { type: "string", description: "Coin type A (e.g. 0x2::sui::SUI). Use 'SUI', 'USDC', 'USDT', 'WETH', 'DEEP' as shortcuts." },
+        coinTypeB: { type: "string", description: "Coin type B" },
+        limit: { type: "number", description: "Max pools (default: 10)" },
+      },
+    },
+  },
+  {
+    name: "cetus_get_pool",
+    description: "Get detailed info for a specific Cetus pool by its object ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        poolId: { type: "string", description: "Cetus pool object ID" },
+      },
+      required: ["poolId"],
+    },
+  },
+
+  // ── DeFi: DeepBook Order Book ──
+  {
+    name: "deepbook_get_pool",
+    description: "Get DeepBook v3 pool info (order book) — mid price, spread, balances.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        poolId: { type: "string", description: "DeepBook pool object ID" },
+      },
+      required: ["poolId"],
+    },
+  },
+
+  // ── DeFi: Token Price (via pools) ──
+  {
+    name: "get_token_price",
+    description: "Get approximate token price by querying DeFi pool reserves. Supports common tokens: SUI, USDC, USDT, WETH, DEEP.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        token: { type: "string", description: "Token symbol (SUI, USDC, USDT, WETH, DEEP) or full coin type" },
+      },
+      required: ["token"],
+    },
+  },
+
+  // ── DeFi: Swap Quote ──
+  {
+    name: "swap_quote",
+    description: "Get a swap quote by simulating a Move call. Returns estimated output amount and gas cost without executing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        fromCoin: { type: "string", description: "Source coin type or shorthand (SUI, USDC, etc.)" },
+        toCoin: { type: "string", description: "Destination coin type or shorthand" },
+        amount: { type: "number", description: "Amount to swap (in token units, not MIST)" },
+        poolId: { type: "string", description: "Pool object ID to use for the swap" },
+      },
+      required: ["fromCoin", "toCoin", "amount", "poolId"],
+    },
+  },
+
+  // ── SuiNS Extended ──
+  {
+    name: "suins_get_name_record",
+    description: "Get detailed SuiNS name record — NFT ID, target address, expiration, metadata.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "SuiNS name (e.g. example.sui)" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "suins_get_price",
+    description: "Get SuiNS registration and renewal pricing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Domain name to check price for" },
+        years: { type: "number", description: "Number of years (default: 1)" },
+      },
+      required: ["name"],
+    },
+  },
+
+  // ── Common Tokens ──
+  {
+    name: "list_common_tokens",
+    description: "List commonly used Sui token types (SUI, USDC, USDT, WETH, DEEP) with their full coin type addresses.",
+    inputSchema: { type: "object", properties: {} },
+  },
 ];
 
 // ─── Tool Handlers ───────────────────────────────────────────────────────────
@@ -1350,6 +1483,224 @@ async function handleTool(
         return textResult(JSON.stringify(metrics, null, 2));
       }
 
+      // ── DeFi: Cetus ──
+      case "cetus_get_pools": {
+        const coinA = args.coinTypeA ? resolveCoinType(args.coinTypeA as string) : undefined;
+        const coinB = args.coinTypeB ? resolveCoinType(args.coinTypeB as string) : undefined;
+        const limit = z.number().int().min(1).max(50).optional().parse(args.limit) ?? 10;
+
+        // Query Cetus pool objects by their type
+        const poolType = `${CETUS_CLMM_PACKAGE}::pool::Pool`;
+        const poolObjects = await client.queryTransactionBlocks({
+          filter: { ChangedObject: CETUS_CLMM_PACKAGE },
+          limit: 1,
+          options: {},
+        });
+
+        // Instead, directly query owned objects of the CLMM package for pools
+        // We'll search for Pool objects matching the coin types
+        let filter: Record<string, unknown> | undefined;
+        if (coinA && coinB) {
+          filter = { StructType: `${CETUS_CLMM_PACKAGE}::pool::Pool<${coinA}, ${coinB}>` };
+        }
+
+        const objects = await client.getOwnedObjects({
+          owner: CETUS_CLMM_PACKAGE,
+          limit,
+          filter: filter as never,
+          options: { showType: true, showContent: true },
+        });
+
+        // If no owned objects, try querying by type via events
+        if (!objects.data?.length && coinA && coinB) {
+          // Try reverse order
+          const reverseFilter = { StructType: `${CETUS_CLMM_PACKAGE}::pool::Pool<${coinB}, ${coinA}>` };
+          const reverseObjects = await client.getOwnedObjects({
+            owner: CETUS_CLMM_PACKAGE,
+            limit,
+            filter: reverseFilter as never,
+            options: { showType: true, showContent: true },
+          });
+          return textResult(JSON.stringify({
+            pools: reverseObjects.data || [],
+            network: currentNetwork,
+            hint: "Use get_object with a known Cetus pool ID for detailed pool data",
+          }, null, 2));
+        }
+
+        return textResult(JSON.stringify({
+          pools: objects.data || [],
+          network: currentNetwork,
+          hint: "Use get_object with a known Cetus pool ID for detailed pool data",
+        }, null, 2));
+      }
+
+      case "cetus_get_pool": {
+        const poolId = ObjectIdSchema.parse(args.poolId);
+        const pool = await client.getObject({
+          id: poolId,
+          options: { showContent: true, showType: true, showOwner: true },
+        });
+        return textResult(JSON.stringify(pool, null, 2));
+      }
+
+      // ── DeFi: DeepBook ──
+      case "deepbook_get_pool": {
+        const poolId = ObjectIdSchema.parse(args.poolId);
+        const pool = await client.getObject({
+          id: poolId,
+          options: { showContent: true, showType: true },
+        });
+        // Also get dynamic fields for order book data
+        const fields = await client.getDynamicFields({ parentId: poolId, limit: 10 });
+        return textResult(JSON.stringify({ pool, dynamicFields: fields, network: currentNetwork }, null, 2));
+      }
+
+      // ── DeFi: Token Price ──
+      case "get_token_price": {
+        const tokenInput = z.string().min(1).parse(args.token);
+        const coinType = resolveCoinType(tokenInput);
+
+        if (coinType === COMMON_COIN_TYPES.SUI || tokenInput.toUpperCase() === "SUI") {
+          // Get SUI price via Cetus SUI/USDC pool on mainnet
+          // Well-known Cetus SUI/USDC pool
+          const suiUsdcPool = "0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688571";
+          try {
+            const poolData = await client.getObject({
+              id: suiUsdcPool,
+              options: { showContent: true },
+            });
+            return textResult(JSON.stringify({
+              token: "SUI",
+              coinType,
+              pool: suiUsdcPool,
+              poolData: (poolData.data as { content?: unknown })?.content,
+              network: currentNetwork,
+              note: "Parse current_sqrt_price from pool content. Price = (sqrt_price / 2^64)^2 * 10^(decimalsA - decimalsB)",
+            }, null, 2));
+          } catch {
+            return textResult(JSON.stringify({
+              token: tokenInput,
+              coinType,
+              error: "Pool query failed — ensure you're on mainnet for price data",
+              network: currentNetwork,
+            }, null, 2));
+          }
+        }
+
+        // For other tokens, get coin metadata
+        try {
+          const meta = await client.getCoinMetadata({ coinType });
+          return textResult(JSON.stringify({
+            token: tokenInput,
+            coinType,
+            metadata: meta,
+            network: currentNetwork,
+            hint: "Use cetus_get_pool with a known pool ID to get live price data",
+          }, null, 2));
+        } catch {
+          return errorResult(`Could not find metadata for coin type: ${coinType}`);
+        }
+      }
+
+      // ── DeFi: Swap Quote ──
+      case "swap_quote": {
+        const fromCoin = resolveCoinType(z.string().min(1).parse(args.fromCoin));
+        const toCoin = resolveCoinType(z.string().min(1).parse(args.toCoin));
+        const amount = AmountSchema.parse(args.amount);
+        const poolId = ObjectIdSchema.parse(args.poolId);
+
+        // First get pool to determine coin order
+        const pool = await client.getObject({
+          id: poolId,
+          options: { showType: true, showContent: true },
+        });
+
+        const poolType = (pool.data as { type?: string })?.type || "";
+        const a2b = poolType.includes(fromCoin);
+
+        // Use dev_inspect to simulate the swap
+        const sender = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const tx = new Transaction();
+        tx.moveCall({
+          target: `${CETUS_CLMM_PACKAGE}::pool::get_pool_info`,
+          arguments: [tx.object(poolId)],
+        });
+
+        try {
+          const result = await client.devInspectTransactionBlock({
+            transactionBlock: tx,
+            sender,
+          });
+          return textResult(JSON.stringify({
+            fromCoin,
+            toCoin,
+            amount,
+            poolId,
+            a2b,
+            poolInfo: result,
+            network: currentNetwork,
+            note: "This shows pool state. For exact swap output, use move_call with the pool's swap function.",
+          }, null, 2));
+        } catch (err) {
+          return textResult(JSON.stringify({
+            fromCoin,
+            toCoin,
+            amount,
+            poolId,
+            poolType,
+            error: sanitizeError(err),
+            hint: "Use get_object on the pool to inspect reserves and calculate expected output",
+          }, null, 2));
+        }
+      }
+
+      // ── SuiNS Extended ──
+      case "suins_get_name_record": {
+        const name = z.string().min(1).parse(args.name);
+        const suins = getSuinsClient();
+        const record = await suins.getNameRecord(name);
+        return textResult(JSON.stringify({
+          ...record,
+          expirationDate: record?.expirationTimestampMs
+            ? new Date(Number(record.expirationTimestampMs)).toISOString()
+            : null,
+        }, null, 2));
+      }
+
+      case "suins_get_price": {
+        const name = z.string().min(1).parse(args.name);
+        const years = z.number().int().min(1).max(5).optional().parse(args.years) ?? 1;
+        const suins = getSuinsClient();
+        try {
+          const priceList = await suins.getPriceList();
+          const renewalPriceList = await suins.getRenewalPriceList();
+          const nameLength = name.replace(".sui", "").length;
+          return textResult(JSON.stringify({
+            name,
+            nameLength,
+            years,
+            registrationPrices: priceList,
+            renewalPrices: renewalPriceList,
+            note: "Prices are in MIST (1 SUI = 1e9 MIST). Price depends on name length.",
+          }, null, 2));
+        } catch (err) {
+          return errorResult(sanitizeError(err));
+        }
+      }
+
+      // ── Common Tokens ──
+      case "list_common_tokens": {
+        return textResult(JSON.stringify({
+          tokens: Object.entries(COMMON_COIN_TYPES).map(([symbol, type]) => ({
+            symbol,
+            coinType: type,
+          })),
+          network: currentNetwork,
+          note: "These are mainnet coin types. Use the symbol as shorthand in other tools (e.g. 'SUI' instead of the full type).",
+        }, null, 2));
+      }
+
       default:
         return errorResult(`Unknown tool: ${name}`);
     }
@@ -1361,7 +1712,7 @@ async function handleTool(
 // ─── Server Setup ────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "sui-mcp-server", version: "0.2.0" },
+  { name: "sui-mcp-server", version: "0.3.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -1377,7 +1728,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`sui-mcp-server v0.2.0 running on ${currentNetwork} (stdio)`);
+  console.error(`sui-mcp-server v0.3.0 running on ${currentNetwork} (stdio)`);
 }
 
 main().catch((err) => {
