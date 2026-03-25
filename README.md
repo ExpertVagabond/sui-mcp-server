@@ -4,9 +4,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-MCP server for the **Sui blockchain** — gives AI agents direct access to wallet management, token operations, transactions, Move contract interaction, object queries, staking, analytics, and more.
+MCP server for the **Sui blockchain** — gives AI agents direct access to wallet management, DeFi operations, token analytics, Move contract interaction, staking, and more.
 
-Built on the [Model Context Protocol](https://modelcontextprotocol.io/) with the official [@mysten/sui](https://www.npmjs.com/package/@mysten/sui) SDK. **45 tools** across 11 categories.
+Built on the [Model Context Protocol](https://modelcontextprotocol.io/) with the official [@mysten/sui](https://www.npmjs.com/package/@mysten/sui) SDK. **53 tools** across 13 categories.
 
 ## Tools
 
@@ -21,7 +21,10 @@ Built on the [Model Context Protocol](https://modelcontextprotocol.io/) with the
 | **Staking** | `get_stakes`, `request_add_stake`, `request_withdraw_stake`, `get_validators` |
 | **Events** | `query_events` |
 | **Network** | `switch_network`, `get_network_info`, `get_latest_checkpoint`, `get_reference_gas_price`, `get_checkpoint`, `get_epoch_info`, `get_protocol_config`, `get_system_state`, `get_committee_info` |
-| **SuiNS** | `resolve_name`, `resolve_address` |
+| **SuiNS** | `resolve_name`, `resolve_address`, `suins_get_name_record`, `suins_get_price` |
+| **DeFi: Cetus** | `cetus_get_pools`, `cetus_get_pool` |
+| **DeFi: DeepBook** | `deepbook_get_pool` |
+| **DeFi: Tokens** | `get_token_price`, `swap_quote`, `list_common_tokens` |
 | **Faucet** | `request_faucet` |
 
 ## Quick Start
@@ -46,12 +49,16 @@ Add to `~/.mcp.json`:
 }
 ```
 
+## Token Shortcuts
+
+Use symbol shortcuts instead of full coin types: `SUI`, `USDC`, `USDT`, `WETH`, `DEEP`
+
 ## Development
 
 ```bash
 npm install
 npm run build
-npm test     # 46 integration tests
+npm test     # 59 integration tests
 npm start
 ```
 
