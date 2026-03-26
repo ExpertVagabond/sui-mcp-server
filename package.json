@@ -1,6 +1,6 @@
 {
   "name": "sui-mcp-server",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "MCP server for Sui blockchain — wallet management, token ops, transactions, Move calls, staking",
   "type": "module",
   "main": "dist/index.js",
@@ -26,6 +26,7 @@
   ],
   "author": "Matthew Karsten <MatthewKarstenConnects@gmail.com>",
   "license": "MIT",
+  "mcpName": "io.github.ExpertVagabond/sui-mcp-server",
   "repository": {
     "type": "git",
     "url": "https://github.com/ExpertVagabond/sui-mcp-server.git"
