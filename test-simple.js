@@ -22,7 +22,7 @@ function parse(result) {
 }
 
 async function run() {
-  console.log("sui-mcp-server v0.3.0 integration tests\n");
+  console.log("sui-mcp-server v0.4.0 integration tests\n");
 
   const transport = new StdioClientTransport({ command: "node", args: ["dist/index.js"] });
   const client = new Client({ name: "test", version: "1.0" });

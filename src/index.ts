@@ -8,11 +8,21 @@ import {
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+// GraphQL client loaded dynamically to avoid slow cold starts
+type SuiGraphQLClientType = import("@mysten/sui/graphql").SuiGraphQLClient;
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { requestSuiFromFaucetV2, getFaucetHost } from "@mysten/sui/faucet";
 import { SuinsClient } from "@mysten/suins";
 import { z } from "zod";
+
+// ─── GraphQL Endpoints ───────────────────────────────────────────────────────
+
+const GRAPHQL_ENDPOINTS: Record<string, string> = {
+  mainnet: "https://graphql.mainnet.sui.io/graphql",
+  testnet: "https://graphql.testnet.sui.io/graphql",
+  devnet: "https://graphql.devnet.sui.io/graphql",
+};
 
 // ─── DeFi Constants ──────────────────────────────────────────────────────────
 
@@ -42,14 +52,45 @@ interface WalletEntry {
 
 const wallets: Map<string, WalletEntry> = new Map();
 let currentNetwork: NetworkType = "devnet";
-let client = new SuiJsonRpcClient({
+
+// Primary: GraphQL client (future-proof, survives July 2026 deprecation)
+// Dynamically imported to avoid slow cold starts from schema loading
+let gqlClient: SuiGraphQLClientType | null = null;
+let gqlModuleLoaded = false;
+let SuiGraphQLClientClass: (new (opts: { url: string; network: string }) => SuiGraphQLClientType) | null = null;
+
+async function getGqlClient(): Promise<SuiGraphQLClientType | null> {
+  if (!GRAPHQL_ENDPOINTS[currentNetwork]) return null;
+  if (!gqlModuleLoaded) {
+    try {
+      const mod = await import("@mysten/sui/graphql");
+      SuiGraphQLClientClass = mod.SuiGraphQLClient as never;
+      gqlModuleLoaded = true;
+    } catch {
+      return null;
+    }
+  }
+  if (!gqlClient && SuiGraphQLClientClass) {
+    gqlClient = new SuiGraphQLClientClass({
+      url: GRAPHQL_ENDPOINTS[currentNetwork],
+      network: currentNetwork as Exclude<NetworkType, "localnet">,
+    });
+  }
+  return gqlClient;
+}
+
+// Fallback: JSON-RPC client (for methods not yet on GraphQL)
+let rpcClient = new SuiJsonRpcClient({
   url: getJsonRpcFullnodeUrl(currentNetwork as Exclude<NetworkType, "localnet">),
   network: currentNetwork as Exclude<NetworkType, "localnet">,
 });
+
+// Alias for backward compat in handlers
+let client = rpcClient;
+
 let suinsClient: SuinsClient | null = null;
 
 function getSuinsClient(): SuinsClient {
-  // SuiNS only supports mainnet and testnet — always use mainnet for name resolution
   const suinsNet = (currentNetwork === "mainnet" || currentNetwork === "testnet") ? currentNetwork : "mainnet";
   if (!suinsClient) {
     const suiClientForSuins = new SuiJsonRpcClient({
@@ -63,15 +104,21 @@ function getSuinsClient(): SuinsClient {
 
 function switchClient(network: NetworkType): void {
   currentNetwork = network;
-  suinsClient = null; // Reset SuiNS client
+  suinsClient = null;
+
+  // Reset GraphQL client — will be re-created lazily on next use
+  gqlClient = null;
+
+  // Update JSON-RPC client
   if (network === "localnet") {
-    client = new SuiJsonRpcClient({ url: "http://127.0.0.1:9000", network: "custom" as never });
+    rpcClient = new SuiJsonRpcClient({ url: "http://127.0.0.1:9000", network: "custom" as never });
   } else {
-    client = new SuiJsonRpcClient({
+    rpcClient = new SuiJsonRpcClient({
       url: getJsonRpcFullnodeUrl(network),
       network,
     });
   }
+  client = rpcClient;
 }
 
 function resolveCoinType(input: string): string {
@@ -889,6 +936,23 @@ async function handleTool(
 
       case "get_balance": {
         const address = AddressSchema.parse(args.address);
+        if (await getGqlClient()) {
+          const result = await (await getGqlClient())!.getBalance({ owner: address });
+          const bal = result.balance;
+          return textResult(
+            JSON.stringify(
+              {
+                address,
+                coinType: bal?.coinType || "0x2::sui::SUI",
+                balance: formatSui(bal?.coinBalance || "0"),
+                balanceMist: bal?.coinBalance || "0",
+                transport: "graphql",
+              },
+              null,
+              2
+            )
+          );
+        }
         const balance = await client.getBalance({ owner: address });
         return textResult(
           JSON.stringify(
@@ -949,6 +1013,29 @@ async function handleTool(
         const [coin] = tx.splitCoins(tx.gas, [mistAmount]);
         tx.transferObjects([coin], toAddress);
 
+        if (await getGqlClient()) {
+          const gqlResult = await (await getGqlClient())!.signAndExecuteTransaction({
+            transaction: tx,
+            signer: wallet.keypair,
+            include: { effects: true },
+          });
+          return textResult(
+            JSON.stringify(
+              {
+                digest: (gqlResult as unknown as { digest?: string }).digest || "submitted",
+                status: "success",
+                from: wallet.address,
+                to: toAddress,
+                amount: `${amount} SUI`,
+                network: currentNetwork,
+                transport: "graphql",
+              },
+              null,
+              2
+            )
+          );
+        }
+
         const result = await client.signAndExecuteTransaction({
           transaction: tx,
           signer: wallet.keypair,
@@ -964,6 +1051,7 @@ async function handleTool(
               to: toAddress,
               amount: `${amount} SUI`,
               network: currentNetwork,
+              transport: "jsonrpc",
             },
             null,
             2
@@ -1058,6 +1146,13 @@ async function handleTool(
       // ── Objects ──
       case "get_object": {
         const objectId = ObjectIdSchema.parse(args.objectId);
+        if (await getGqlClient()) {
+          const obj = await (await getGqlClient())!.getObject({
+            objectId,
+            include: { content: true, type: true, owner: true },
+          });
+          return textResult(JSON.stringify({ ...obj, transport: "graphql" }, null, 2));
+        }
         const showContent = args.showContent !== false;
         const showType = args.showType !== false;
         const showOwner = args.showOwner !== false;
@@ -1261,6 +1356,28 @@ async function handleTool(
       }
 
       case "get_network_info": {
+        if (await getGqlClient()) {
+          const [gasResult, epochResult] = await Promise.all([
+            (await getGqlClient())!.getReferenceGasPrice(),
+            (await getGqlClient())!.query({ query: "{ chainIdentifier checkpoint { sequenceNumber } epoch { epochId } }", variables: {} }),
+          ]);
+          const data = epochResult.data as Record<string, unknown> | undefined;
+          const gasData = gasResult as unknown as Record<string, string>;
+          return textResult(
+            JSON.stringify(
+              {
+                network: currentNetwork,
+                chainId: data?.chainIdentifier,
+                referenceGasPrice: gasData.referenceGasPrice || String(gasResult),
+                latestCheckpoint: (data?.checkpoint as Record<string, string>)?.sequenceNumber,
+                epoch: (data?.epoch as Record<string, string>)?.epochId,
+                transport: "graphql",
+              },
+              null,
+              2
+            )
+          );
+        }
         const [chainId, gasPrice, checkpoint, systemState] = await Promise.all([
           client.getChainIdentifier(),
           client.getReferenceGasPrice(),
@@ -1288,6 +1405,14 @@ async function handleTool(
       }
 
       case "get_reference_gas_price": {
+        if (await getGqlClient()) {
+          const result = await (await getGqlClient())!.getReferenceGasPrice();
+          return textResult(JSON.stringify({
+            gasPrice: result.referenceGasPrice || String(result),
+            network: currentNetwork,
+            transport: "graphql",
+          }, null, 2));
+        }
         const price = await client.getReferenceGasPrice();
         return textResult(JSON.stringify({ gasPrice: String(price), network: currentNetwork }, null, 2));
       }
@@ -1719,7 +1844,7 @@ async function handleTool(
 // ─── Server Setup ────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "sui-mcp-server", version: "0.3.0" },
+  { name: "sui-mcp-server", version: "0.4.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -1735,7 +1860,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`sui-mcp-server v0.3.0 running on ${currentNetwork} (stdio)`);
+  console.error(`sui-mcp-server v0.4.0 running on ${currentNetwork} (stdio)`);
 }
 
 main().catch((err) => {
