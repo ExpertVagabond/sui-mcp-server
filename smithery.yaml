@@ -6,3 +6,18 @@ startCommand:
   commandFunction:
     - node
     - dist/index.js
+
+name: sui-mcp-server
+description: "53-tool MCP server for Sui blockchain — wallets, DeFi, Move contracts, staking, SuiNS, analytics"
+author: ExpertVagabond
+repository: https://github.com/ExpertVagabond/sui-mcp-server
+npm: sui-mcp-server
+license: MIT
+tags:
+  - sui
+  - blockchain
+  - defi
+  - move
+  - web3
+  - staking
+  - mcp
