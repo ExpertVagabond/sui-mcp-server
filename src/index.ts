@@ -1206,8 +1206,10 @@ async function handleTool(
       case "move_call": {
         const wallet = getWallet(NameSchema.parse(args.wallet));
         const target = z.string().regex(/^0x[^:]+::[^:]+::[^:]+$/, "Format: package::module::function").parse(args.target);
-        const fnArgs = (args.arguments as unknown[]) || [];
-        const typeArgs = (args.typeArguments as string[]) || [];
+        const rawMoveArgs = args.arguments;
+        const fnArgs: unknown[] = Array.isArray(rawMoveArgs) ? rawMoveArgs : (typeof rawMoveArgs === "string" ? JSON.parse(rawMoveArgs) : []);
+        const rawMoveTypeArgs = args.typeArguments;
+        const typeArgs: string[] = Array.isArray(rawMoveTypeArgs) ? rawMoveTypeArgs : (typeof rawMoveTypeArgs === "string" ? JSON.parse(rawMoveTypeArgs) : []);
 
         const tx = new Transaction();
         tx.moveCall({
@@ -1568,8 +1570,10 @@ async function handleTool(
       case "dev_inspect": {
         const sender = AddressSchema.parse(args.sender);
         const target = z.string().regex(/^0x[^:]+::[^:]+::[^:]+$/).parse(args.target);
-        const fnArgs = (args.arguments as unknown[]) || [];
-        const typeArgs = (args.typeArguments as string[]) || [];
+        const rawArgs = args.arguments;
+        const fnArgs: unknown[] = Array.isArray(rawArgs) ? rawArgs : (typeof rawArgs === "string" ? JSON.parse(rawArgs) : []);
+        const rawTypeArgs = args.typeArguments;
+        const typeArgs: string[] = Array.isArray(rawTypeArgs) ? rawTypeArgs : (typeof rawTypeArgs === "string" ? JSON.parse(rawTypeArgs) : []);
 
         const tx = new Transaction();
         tx.moveCall({
