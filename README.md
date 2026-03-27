@@ -1,22 +1,30 @@
 # sui-mcp-server
 
 [![npm version](https://img.shields.io/npm/v/sui-mcp-server)](https://www.npmjs.com/package/sui-mcp-server)
-[![Tests](https://img.shields.io/badge/tests-59%2F59-brightgreen)](test-simple.js)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![MCP](https://img.shields.io/badge/MCP-compatible-purple)](https://modelcontextprotocol.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node](https://img.shields.io/badge/Node-%3E%3D18-339933?logo=node.js)](https://nodejs.org)
+[![Tools](https://img.shields.io/badge/tools-53-blue)](https://modelcontextprotocol.io)
 
-**53-tool MCP server for the Sui blockchain.** Gives AI agents direct access to wallets, DeFi, Move contracts, staking, analytics, and the full Sui RPC surface.
+**The most comprehensive Sui blockchain MCP server.** 53 tools with GraphQL + JSON-RPC dual transport -- wallets, DeFi (Cetus, DeepBook), SuiNS, staking, validators, Move introspection, and the full Sui RPC surface.
 
-Built on the [Model Context Protocol](https://modelcontextprotocol.io/) with the official [@mysten/sui](https://www.npmjs.com/package/@mysten/sui) v2.11 SDK and [@mysten/suins](https://www.npmjs.com/package/@mysten/suins) for name service.
+Competitors offer 10-15 tools for basic operations. This server covers the entire Sui ecosystem in a single package.
 
-Tested end-to-end on **devnet** and **testnet** — wallet creation, faucet, transfers, coin splitting/merging, transaction queries, Move inspection, staking, DeFi pool queries, and SuiNS resolution all verified.
+## Install
 
-## Installation
+```bash
+npx sui-mcp-server
+```
 
-### Claude Code / Cursor / Windsurf
+Or install globally:
 
-Add to your MCP config (`~/.mcp.json`):
+```bash
+npm install -g sui-mcp-server
+sui-mcp-server
+```
+
+## Configure
+
+Add to your MCP config (`claude_desktop_config.json` or `~/.mcp.json`):
 
 ```json
 {
@@ -29,163 +37,154 @@ Add to your MCP config (`~/.mcp.json`):
 }
 ```
 
-### Global Install
-
-```bash
-npm install -g sui-mcp-server
-sui-mcp-server
-```
-
-### From Source
-
-```bash
-git clone https://github.com/ExpertVagabond/sui-mcp-server.git
-cd sui-mcp-server
-npm install
-npm run build
-npm start
-```
+No API key required -- connects directly to Sui public RPC nodes.
 
 ## Tools (53)
 
 ### Wallet Management (4)
 
-| Tool | Description |
-|------|-------------|
-| `create_wallet` | Create a new Ed25519 keypair. Keys are held in memory only — not persisted to disk. |
-| `import_wallet` | Import from a Bech32-encoded private key (`suiprivkey...`). |
-| `list_wallets` | List all wallets managed in the current session. |
-| `get_balance` | Get SUI balance for any address. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `create_wallet` | Create a new Ed25519 keypair (in-memory only, not persisted) | -- |
+| `import_wallet` | Import from a Bech32-encoded private key (`suiprivkey...`) | `privateKey` |
+| `list_wallets` | List all wallets in the current session | -- |
+| `get_balance` | Get SUI balance for any address | `address` |
 
 ### Coin Operations (4)
 
-| Tool | Description |
-|------|-------------|
-| `get_all_balances` | Get all coin balances for an address (SUI + all other coin types). |
-| `get_coins` | Get coin objects of a specific type owned by an address. |
-| `get_coin_metadata` | Get metadata for a coin type (name, symbol, decimals, description). |
-| `get_total_supply` | Get total circulating supply of a coin type. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `get_all_balances` | All coin balances for an address (SUI + other coin types) | `address` |
+| `get_coins` | Coin objects of a specific type owned by an address | `address`, `coinType` |
+| `get_coin_metadata` | Metadata for a coin type (name, symbol, decimals) | `coinType` |
+| `get_total_supply` | Total circulating supply of a coin type | `coinType` |
 
 ### Transfers (4)
 
-| Tool | Description |
-|------|-------------|
-| `transfer_sui` | Transfer SUI between addresses. Amount is in SUI (not MIST). |
-| `transfer_objects` | Transfer one or more objects to a recipient. |
-| `merge_coins` | Merge multiple coins into one. Handles gas coin conflicts automatically. |
-| `split_coins` | Split a coin into multiple coins. Works even with single-coin wallets. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `transfer_sui` | Transfer SUI between addresses (amount in SUI, not MIST) | `from`, `to`, `amount` |
+| `transfer_objects` | Transfer one or more objects to a recipient | `from`, `objectIds`, `to` |
+| `merge_coins` | Merge multiple coins into one (handles gas conflicts) | `walletName`, `coinType` |
+| `split_coins` | Split a coin into multiple coins | `walletName`, `coinId`, `amounts` |
 
 ### Object Queries (5)
 
-| Tool | Description |
-|------|-------------|
-| `get_object` | Get full details of any on-chain object by ID. |
-| `get_owned_objects` | List objects owned by an address, with optional type filtering. |
-| `get_dynamic_fields` | Get dynamic fields of an object (for tables, bags, etc.). |
-| `multi_get_objects` | Batch-fetch up to 50 objects in one call. |
-| `get_object_history` | Trace all transactions that touched a given object (provenance). |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `get_object` | Full details of any on-chain object by ID | `objectId` |
+| `get_owned_objects` | Objects owned by an address with optional type filtering | `address`, `type` |
+| `get_dynamic_fields` | Dynamic fields of an object (tables, bags) | `parentId` |
+| `multi_get_objects` | Batch-fetch up to 50 objects in one call | `objectIds` |
+| `get_object_history` | Trace all transactions that touched a given object | `objectId` |
 
 ### Transactions (4)
 
-| Tool | Description |
-|------|-------------|
-| `get_transaction` | Get full transaction details by digest — input, effects, events, object changes. |
-| `dry_run_transaction` | Dry-run a transaction to preview effects without executing. |
-| `query_transactions` | Search transactions by sender, recipient, input object, changed object, or Move function. |
-| `get_total_transactions` | Get the total transaction count on the network. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `get_transaction` | Full transaction details by digest | `digest` |
+| `dry_run_transaction` | Dry-run to preview effects without executing | `txBytes` |
+| `query_transactions` | Search by sender, recipient, object, or Move function | `filter` |
+| `get_total_transactions` | Total transaction count on the network | -- |
 
 ### Move Smart Contracts (7)
 
-| Tool | Description |
-|------|-------------|
-| `move_call` | Execute a Move function call. Supports object refs, integers, booleans, strings. |
-| `dev_inspect` | Simulate a Move call without executing — returns results, gas cost, effects. No wallet needed. |
-| `get_normalized_module` | Get a full Move module definition (functions, structs). |
-| `get_move_function` | Get details of a specific Move function (params, return types, visibility). |
-| `get_move_struct` | Get a Move struct definition (fields, abilities, type parameters). |
-| `get_package_modules` | List all modules in a Move package with their functions and structs. |
-| `get_move_call_metrics` | Get network-wide Move call metrics — most-called packages, modules, functions. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `move_call` | Execute a Move function call | `walletName`, `target`, `arguments` |
+| `dev_inspect` | Simulate a Move call without executing (no wallet needed) | `sender`, `target`, `arguments` |
+| `get_normalized_module` | Full Move module definition (functions, structs) | `package`, `module` |
+| `get_move_function` | Move function details (params, return types, visibility) | `package`, `module`, `function` |
+| `get_move_struct` | Move struct definition (fields, abilities) | `package`, `module`, `struct` |
+| `get_package_modules` | List all modules in a Move package | `package` |
+| `get_move_call_metrics` | Network-wide Move call metrics | -- |
 
 ### Staking (4)
 
-| Tool | Description |
-|------|-------------|
-| `get_stakes` | Get all staking positions for an address. |
-| `request_add_stake` | Stake SUI with a validator. |
-| `request_withdraw_stake` | Withdraw staked SUI. |
-| `get_validators` | Get the full validator set with APY, commission rates, and stake amounts. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `get_stakes` | All staking positions for an address | `address` |
+| `request_add_stake` | Stake SUI with a validator | `walletName`, `amount`, `validator` |
+| `request_withdraw_stake` | Withdraw staked SUI | `walletName`, `stakedSuiId` |
+| `get_validators` | Full validator set with APY, commission, and stake amounts | -- |
 
 ### Events (1)
 
-| Tool | Description |
-|------|-------------|
-| `query_events` | Query on-chain events by type, sender, package, module, or transaction digest. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `query_events` | Query on-chain events by type, sender, package, or digest | `filter` |
 
 ### Network & Analytics (9)
 
-| Tool | Description |
-|------|-------------|
-| `switch_network` | Switch between mainnet, testnet, devnet, and localnet. |
-| `get_network_info` | Get chain ID, epoch, gas price, and latest checkpoint. |
-| `get_latest_checkpoint` | Get the latest checkpoint sequence number. |
-| `get_reference_gas_price` | Get the current reference gas price in MIST. |
-| `get_checkpoint` | Get detailed checkpoint data by sequence number. |
-| `get_epoch_info` | Get historical epoch data (start/end times, stakes, gas summaries). |
-| `get_protocol_config` | Get the Sui protocol configuration (limits, features, gas settings). |
-| `get_system_state` | Get full system state: epoch, validators, stake distribution, storage fund. |
-| `get_committee_info` | Get validator committee information for any epoch. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `switch_network` | Switch between mainnet, testnet, devnet, localnet | `network` |
+| `get_network_info` | Chain ID, epoch, gas price, latest checkpoint | -- |
+| `get_latest_checkpoint` | Latest checkpoint sequence number | -- |
+| `get_reference_gas_price` | Current reference gas price in MIST | -- |
+| `get_checkpoint` | Detailed checkpoint data by sequence number | `sequenceNumber` |
+| `get_epoch_info` | Historical epoch data (times, stakes, gas summaries) | `epoch` |
+| `get_protocol_config` | Sui protocol configuration (limits, features) | -- |
+| `get_system_state` | Full system state: epoch, validators, storage fund | -- |
+| `get_committee_info` | Validator committee info for any epoch | `epoch` |
 
 ### SuiNS Name Service (4)
 
-| Tool | Description |
-|------|-------------|
-| `resolve_name` | Resolve a SuiNS name (e.g. `example.sui`) to a Sui address. |
-| `resolve_address` | Reverse-resolve an address to its SuiNS name(s). |
-| `suins_get_name_record` | Get full name record — NFT ID, target address, expiration, metadata. |
-| `suins_get_price` | Get SuiNS registration and renewal pricing by name length. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `resolve_name` | Resolve `example.sui` to a Sui address | `name` |
+| `resolve_address` | Reverse-resolve an address to SuiNS name(s) | `address` |
+| `suins_get_name_record` | Full name record -- NFT ID, target, expiration, metadata | `name` |
+| `suins_get_price` | Registration and renewal pricing by name length | `length` |
 
 ### DeFi: Cetus DEX (2)
 
-| Tool | Description |
-|------|-------------|
-| `cetus_get_pools` | Query Cetus CLMM pools by coin types. Returns pool addresses, liquidity, fee rates. |
-| `cetus_get_pool` | Get detailed pool data for a specific Cetus pool by object ID. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `cetus_get_pools` | Query Cetus CLMM pools by coin types | `coinTypeA`, `coinTypeB` |
+| `cetus_get_pool` | Detailed pool data for a specific Cetus pool | `poolId` |
 
 ### DeFi: DeepBook (1)
 
-| Tool | Description |
-|------|-------------|
-| `deepbook_get_pool` | Get DeepBook v3 order book data — pool state and dynamic fields. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `deepbook_get_pool` | DeepBook v3 order book data -- pool state and dynamic fields | `poolId` |
 
 ### DeFi: Token Tools (3)
 
-| Tool | Description |
-|------|-------------|
-| `get_token_price` | Get token price by querying DeFi pool reserves. Supports common token shortcuts. |
-| `swap_quote` | Get a swap quote by simulating against a pool. Returns estimated output and gas cost. |
-| `list_common_tokens` | List common Sui tokens with their full coin type addresses. |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `get_token_price` | Token price by querying DeFi pool reserves | `token` |
+| `swap_quote` | Swap quote by simulating against a pool | `tokenIn`, `tokenOut`, `amount` |
+| `list_common_tokens` | Common Sui tokens with full coin type addresses | -- |
 
 ### Faucet (1)
 
-| Tool | Description |
-|------|-------------|
-| `request_faucet` | Request SUI from the faucet (devnet and testnet only). |
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `request_faucet` | Request SUI from faucet (devnet and testnet only) | `address` |
+
+## Why This One?
+
+- **53 tools vs 10-15.** Competitors like 0xdwong/sui-mcp cover basic operations. This server includes DeFi (Cetus, DeepBook), SuiNS, Move introspection, staking, validators, and full analytics.
+- **GraphQL + JSON-RPC dual transport.** Built on the official `@mysten/sui` v2.11 SDK with `@mysten/suins` for name service -- future-proofed for the GraphQL migration.
+- **Tested end-to-end.** 59 passing tests across devnet, testnet, and mainnet. Wallet creation, transfers, staking, DeFi queries, SuiNS resolution, and Move inspection all verified.
 
 ## Token Shortcuts
 
-Use symbol shortcuts instead of full coin type addresses in any tool:
+Use symbol shortcuts instead of full coin type addresses:
 
 | Shortcut | Full Coin Type |
 |----------|---------------|
 | `SUI` | `0x2::sui::SUI` |
-| `USDC` | `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC` |
-| `USDT` | `0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN` |
-| `WETH` | `0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN` |
-| `DEEP` | `0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP` |
+| `USDC` | `0xdba34672e...::usdc::USDC` |
+| `USDT` | `0xc060006111...::coin::COIN` |
+| `WETH` | `0xaf8cd5edc1...::coin::COIN` |
+| `DEEP` | `0xdeeb7a4662...::deep::DEEP` |
 
 ## Networks
 
-The server starts on **devnet** by default. Switch networks at any time with `switch_network`:
+Starts on **devnet** by default. Switch at any time with `switch_network`:
 
 | Network | RPC Endpoint |
 |---------|-------------|
@@ -196,80 +195,21 @@ The server starts on **devnet** by default. Switch networks at any time with `sw
 
 ## Security
 
-> **Warning:** This server stores private keys in memory during runtime. For production use, take appropriate precautions.
-
-**Built-in protections:**
-- **Keys are in-memory only** — never written to disk, never logged, cleared on process exit.
-- Private keys are redacted from all error messages (`suiprivkey...` → `[REDACTED]`).
-- Addresses are truncated in error output to prevent leakage.
-- Rate limiting: 120 calls per minute (sliding window).
-- All inputs validated with Zod strict schemas — rejects unknown fields.
-
-**Production recommendations:**
-- Use a secure key management solution (hardware wallet, HSM, or vault) instead of in-memory keys for mainnet operations.
-- Run the server in an isolated environment (container, sandbox, or restricted user).
-- Implement network-level access controls — the stdio transport is local-only by default.
-- Rotate keys regularly and use separate wallets for testing vs. production.
-- Monitor wallet activity and set up alerts for unexpected transactions.
-- Prefer `dev_inspect` and `dry_run_transaction` to preview effects before executing on mainnet.
-
-## Architecture
-
-```
-src/index.ts          # Single-file MCP server (~1,300 lines)
-├── Tool definitions  # 53 tools with Zod input schemas
-├── Tool handlers     # Switch-case dispatch with error handling
-├── Wallet store      # In-memory Map<string, WalletEntry>
-├── Rate limiter      # Sliding window (120/min)
-└── Network switcher  # Multi-network SuiJsonRpcClient management
-```
-
-**Dependencies:**
-- `@modelcontextprotocol/sdk` — MCP protocol (stdio transport)
-- `@mysten/sui` v2.11 — Sui JSON-RPC client, transactions, keypairs, faucet
-- `@mysten/suins` v1.0 — SuiNS name service queries
-- `zod` — Input validation
+- Keys are in-memory only -- never written to disk, never logged
+- Private keys redacted from all error messages
+- Rate limiting: 120 calls/minute (sliding window)
+- All inputs validated with Zod strict schemas
 
 ## Development
 
 ```bash
-npm install           # Install dependencies
-npm run build         # Compile TypeScript
-npm run lint          # Type-check without emitting
-npm test              # Run 59 integration tests (hits devnet + testnet + mainnet)
-npm start             # Start the server (stdio)
-npm run dev           # Watch mode
+git clone https://github.com/ExpertVagabond/sui-mcp-server.git
+cd sui-mcp-server
+npm install
+npm run build
+npm start
 ```
-
-## Verified Test Results
-
-Tested on Sui devnet (epoch 42) and testnet (epoch 1049):
-
-```
-59 passed, 0 failed, 59 total
-```
-
-End-to-end verified:
-- Wallet creation and import (Ed25519 + Bech32 private keys)
-- Faucet airdrop (10 SUI on devnet)
-- SUI transfers between wallets
-- Coin split (single-coin gas handling) and merge
-- Transaction details, gas costs, object changes
-- Move call simulation via `dev_inspect`
-- Validator queries (4 on devnet, 118 on testnet)
-- SuiNS name records (mainnet)
-- Cetus DEX pool queries (mainnet)
-- Event and transaction search/filtering
-- Protocol config, epoch history, checkpoint data
-
-## Roadmap
-
-- [ ] GraphQL RPC migration (Sui JSON-RPC deprecated July 2026)
-- [ ] Cetus/Aftermath/Scallop SDK integration (pending `@mysten/sui` v2 compatibility)
-- [ ] NFT and Kiosk framework operations
-- [ ] Event streaming via gRPC
-- [ ] Move contract deployment and upgrade management
 
 ## License
 
-MIT — [Matthew Karsten](https://github.com/ExpertVagabond) / [Purple Squirrel Media](https://purplesquirrelmedia.io)
+MIT -- [Matthew Karsten](https://github.com/ExpertVagabond) / [Purple Squirrel Media](https://purplesquirrelmedia.io)
