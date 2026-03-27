@@ -1,0 +1,19 @@
+{
+  "name": "sui-mcp-server",
+  "owner": {
+    "name": "Purple Squirrel Media",
+    "email": "matthew@purplesquirrelmedia.io",
+    "github": "ExpertVagabond"
+  },
+  "plugins": [
+    {
+      "name": "sui-mcp-server",
+      "source": ".",
+      "description": "53-tool MCP server for Sui blockchain — DeFi, SuiNS, staking, Move introspection",
+      "version": "0.4.2",
+      "category": "blockchain",
+      "tools": 53,
+      "homepage": "https://github.com/ExpertVagabond/sui-mcp-server"
+    }
+  ]
+}
