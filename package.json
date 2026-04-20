@@ -28,7 +28,7 @@
     "ed25519-hd-key": "^1.0.0"
   },
   "devDependencies": {
-    "@smithery/cli": "^1.2.4",
+    "@smithery/cli": "^4.8.1",
     "tsx": "^4.19.4"
   }
 }
