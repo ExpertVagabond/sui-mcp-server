@@ -1,0 +1,54 @@
+name: CI
+
+# This repository had no CI at all. Its Dependabot PRs therefore showed
+# "MERGEABLE / CLEAN", which meant only that nothing had ever been checked --
+# not that anything was verified. That is how a broken get_all_balances shipped
+# unnoticed.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      # `npm test` is deliberately not run here. test-simple.js is a live
+      # integration suite: it starts the server and calls tools against Sui
+      # devnet. Two reasons it does not belong in this job as it stands --
+      #
+      #   1. It depends on a third-party network being up, so it would fail for
+      #      reasons unrelated to any change in this repo.
+      #   2. It currently cannot pass. Sui deprecated JSON-RPC on public
+      #      fullnodes, and most tools here still call it, so those return
+      #      "Method not found. JSON-RPC on public fullnodes has been
+      #      deprecated." Roughly 30 distinct JSON-RPC methods are still in use
+      #      against 13 call sites already moved to GraphQL.
+      #
+      # Wiring it in before that migration lands would just make CI permanently
+      # red, which is worth less than no CI at all. Run it by hand meanwhile:
+      #   npm run build && npm test

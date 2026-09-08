@@ -177,6 +177,18 @@ function formatSui(mist: string | bigint): string {
   return `${sui.toFixed(9)} SUI`;
 }
 
+const SUI_TYPE = "0x2::sui::SUI";
+
+// GraphQL returns the fully-expanded address form
+// (0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI)
+// while JSON-RPC returns the short 0x2::sui::SUI. An equality check against
+// either literal silently misses the other, so match the package as a number of
+// leading zeros rather than as a string. Anchored so a look-alike coin from a
+// different package cannot pass.
+function isSuiCoinType(coinType: string): boolean {
+  return /^0x0*2::sui::SUI$/.test(coinType);
+}
+
 // ─── Rate Limiter ────────────────────────────────────────────────────────────
 
 class RateLimiter {
@@ -972,6 +984,38 @@ async function handleTool(
       // ── Coins ──
       case "get_all_balances": {
         const address = AddressSchema.parse(args.address);
+        // Sui deprecated JSON-RPC on public fullnodes, so the client.getAllBalances
+        // path below now fails there with "Method not found. JSON-RPC on public
+        // fullnodes has been deprecated." get_balance was migrated to GraphQL;
+        // this tool was missed. It is kept as a fallback for localnet, which has
+        // no GraphQL endpoint in GRAPHQL_ENDPOINTS.
+        const gql = await getGqlClient();
+        if (gql) {
+          const collected: Array<{ coinType?: string | null; coinBalance?: string | null }> = [];
+          let cursor: string | null = null;
+          // listBalances is paginated; a single page would silently truncate the
+          // answer for any address holding more coin types than fit in one.
+          for (let page = 0; page < 20; page++) {
+            const res = await gql.listBalances({ owner: address, cursor: cursor ?? undefined });
+            collected.push(...(res.balances ?? []));
+            if (!res.hasNextPage || !res.cursor) break;
+            cursor = res.cursor;
+          }
+          const formatted = collected.map((b) => {
+            const coinType = b.coinType || SUI_TYPE;
+            const mist = b.coinBalance || "0";
+            return {
+              coinType,
+              // GraphQL returns the fully-expanded type (0x000…002::sui::SUI)
+              // while JSON-RPC returns the short form, so compare on both.
+              balance: isSuiCoinType(coinType) ? formatSui(mist) : mist,
+              balanceMist: mist,
+            };
+          });
+          return textResult(
+            JSON.stringify({ address, balances: formatted, transport: "graphql" }, null, 2)
+          );
+        }
         const balances = await client.getAllBalances({ owner: address });
         const formatted = balances.map((b: { coinType: string; totalBalance: string; coinObjectCount: number }) => ({
           coinType: b.coinType,
