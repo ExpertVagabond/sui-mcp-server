@@ -38,7 +38,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@mysten/sui": "^2.16.0",
     "@mysten/suins": "^1.0.5",
-    "zod": "^3.23.0"
+    "zod": "^4.6.7"
   },
   "files": [
     "dist/",
